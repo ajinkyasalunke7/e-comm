@@ -4,6 +4,7 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import generateToken from "../config/jwtToken.js";
 import { validateMongoId } from "../utils/validateMongoId.js";
+import generateRefreshToken from "../config/refreshToken.js";
 
 // Create user account (Register)
 
@@ -97,6 +98,16 @@ export const loginUser = asyncHandler(async (req, res) => {
         };
 
         if (await findUser.isPasswordMatched(password)) {
+            const refreshToken = await generateRefreshToken(findUser?._id);
+            console.log(refreshToken);
+            const updatedUser = await User.findByIdAndUpdate(
+                findUser._id,
+                {
+                    refreshToken: refreshToken,
+                },
+                { new: true }
+            );
+            res.cookie("refresh");
             return res
                 .status(200)
                 .json(new ApiResponse(200, customData, "User found", true));
@@ -125,11 +136,11 @@ export const updateUser = asyncHandler(async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             _id,
             {
-                firstName: req?.body?.firstName,
-                lastName: req?.body?.lastName,
-                email: req?.body?.email,
-                mobile: req?.body?.mobile,
-                //role: req?.body?.role,
+                firstName: req.body && req.body.firstName,
+                lastName: req.body && req.body.lastName,
+                email: req.body && req.body.email,
+                mobile: req.body && req.body.mobile,
+                //role: req.body && req.body.role,
             },
             {
                 new: true,
@@ -207,7 +218,8 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
 export const blockUser = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    validateMongoId(id);
+    const vali = validateMongoId(id);
+    console.log(vali);
 
     try {
         const blockUser = await User.findByIdAndUpdate(
